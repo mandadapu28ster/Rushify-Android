@@ -359,13 +359,13 @@ class Phase4Tests {
     }
     @Test fun monzoSyncWithCountsRefreshesTheDashboard() {
         env.route("GET", "/api/monzo/status") { env.ok(fixture("monzo.json")) }; env.route("POST", "/api/monzo/sync") { env.ok("""{"monzo_configured":true,"status":"connected","sync":{"accounts":2,"pots":3}}""") }
-        val vm = MonzoViewModel(env.repo); var refreshed = false; vm.syncNow { refreshed = true }
-        assertEquals("Synced 2 accounts and 3 pots.", await(vm.sync) { it.message != null }.message); assertTrue(refreshed)
+        val vm = MonzoViewModel(env.repo); val refreshed = java.util.concurrent.atomic.AtomicBoolean(); vm.syncNow { refreshed.set(true) }
+        assertEquals("Synced 2 accounts and 3 pots.", await(vm.sync) { it.message != null }.message); run { val end = System.nanoTime() + 6_000_000_000L; while (!refreshed.get() && System.nanoTime() < end) Thread.sleep(10) }; assertTrue(refreshed.get())
     }
     @Test fun monzoStillWaitingForApprovalDoesNotRefreshAnything() {
         env.route("GET", "/api/monzo/status") { env.ok(fixture("monzo.json")) }; env.route("POST", "/api/monzo/sync") { env.ok("""{"monzo_configured":true,"status":"pending_approval","sync":null}""") }
-        val vm = MonzoViewModel(env.repo); var refreshed = false; vm.syncNow { refreshed = true }
-        assertEquals(MonzoMessages.WAITING, await(vm.sync) { it.message != null }.message); assertFalse(refreshed)
+        val vm = MonzoViewModel(env.repo); val refreshed = java.util.concurrent.atomic.AtomicBoolean(); vm.syncNow { refreshed.set(true) }
+        assertEquals(MonzoMessages.WAITING, await(vm.sync) { it.message != null }.message); assertFalse(refreshed.get())
     }
     @Test fun monzoRefreshOnOpenOnlyActsWhenTheServerRefreshed() {
         env.route("POST", "/api/monzo/refresh-if-stale") { env.ok("""{"refreshed":true}""") }; assertTrue(runBlocking { env.repo.monzoRefreshIfStale() })

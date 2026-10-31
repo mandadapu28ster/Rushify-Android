@@ -191,28 +191,30 @@ class ManualViewModelTest {
     @After fun tearDown() { env.shutdown(); Dispatchers.resetMain() }
     private fun <T> await(flow: StateFlow<T>, cond: (T) -> Boolean): T = runBlocking { withTimeout(6_000) { flow.first(cond) } }
     private fun next() = env.server.takeRequest(2, TimeUnit.SECONDS)!!
+    /** The success message is published just before the callback runs on another thread, so wait for the callback itself. */
+    private fun waitFor(cond: () -> Boolean) { val end = System.nanoTime() + 6_000_000_000L; while (!cond() && System.nanoTime() < end) Thread.sleep(10) }
     private fun noRequest() = assertNull(env.server.takeRequest(300, TimeUnit.MILLISECONDS))
     private fun body(r: okhttp3.mockwebserver.RecordedRequest) = Json.parseToJsonElement(r.body.readUtf8()).jsonObject
     private fun valid() = ManualRules.listedCreate("VOD.L", "Vodafone", "10", "HL", "isa", "2024-01-01", "100", TODAY)
 
     @Test fun createPostsToManualAndRefreshes() {
-        env.json("""{"id":1}""", 201); var done = 0
-        vm.create(valid()) { done++ }
+        env.json("""{"id":1}""", 201); val done = java.util.concurrent.atomic.AtomicInteger()
+        vm.create(valid()) { done.incrementAndGet() }
         val ui = await(vm.ui) { it.message != null }
         val r = next()
         assertEquals("POST", r.method); assertEquals("/api/portfolio/manual", r.path); assertEquals("Bearer jwt-token", r.getHeader("Authorization"))
-        assertEquals("VOD.L", body(r).s("symbol")); assertEquals(1, done); assertFalse(ui.busy); assertNull(ui.error)
+        assertEquals("VOD.L", body(r).s("symbol")); waitFor { done.get() == 1 }; assertEquals(1, done.get()); assertFalse(ui.busy); assertNull(ui.error)
     }
-    @Test fun createAlsoAcceptsEmpty200() { env.server.enqueue(MockResponse().setResponseCode(200)); var done = 0; vm.create(valid()) { done++ }; await(vm.ui) { it.message != null }; assertEquals(1, done) }
+    @Test fun createAlsoAcceptsEmpty200() { env.server.enqueue(MockResponse().setResponseCode(200)); val done = java.util.concurrent.atomic.AtomicInteger(); vm.create(valid()) { done.incrementAndGet() }; await(vm.ui) { it.message != null }; waitFor { done.get() == 1 }; assertEquals(1, done.get()) }
     @Test fun invalidFormNeverHitsTheServer() {
-        var done = 0; vm.create(ManualRules.listedCreate("", "", "", "", "", "", "", TODAY)) { done++ }
-        assertEquals(ManualRules.MSG_LISTED_MISSING, vm.ui.value.error); assertEquals(0, done); noRequest()
+        val done = java.util.concurrent.atomic.AtomicInteger(); vm.create(ManualRules.listedCreate("", "", "", "", "", "", "", TODAY)) { done.incrementAndGet() }
+        assertEquals(ManualRules.MSG_LISTED_MISSING, vm.ui.value.error); assertEquals(0, done.get()); noRequest()
     }
     @Test fun serverRejectionShowsTheServersMessageAndChangesNothing() {
-        env.json("""{"detail":[{"msg":"quantity must be greater than zero for listed investments"}]}""", 422); var done = 0
-        vm.create(valid()) { done++ }
+        env.json("""{"detail":[{"msg":"quantity must be greater than zero for listed investments"}]}""", 422); val done = java.util.concurrent.atomic.AtomicInteger()
+        vm.create(valid()) { done.incrementAndGet() }
         val ui = await(vm.ui) { it.error != null }
-        assertEquals("quantity must be greater than zero for listed investments", ui.error); assertEquals(0, done); assertNull(ui.message); assertFalse(ui.busy)
+        assertEquals("quantity must be greater than zero for listed investments", ui.error); assertEquals(0, done.get()); assertNull(ui.message); assertFalse(ui.busy)
     }
     @Test fun stringDetailIsShown() {
         env.json("""{"detail":"Sell date cannot be before the lot purchase date"}""", 400)
@@ -220,10 +222,10 @@ class ManualViewModelTest {
         assertEquals("Sell date cannot be before the lot purchase date", await(vm.ui) { it.error != null }.error)
     }
     @Test fun editLotPatchesTheLot() {
-        env.server.enqueue(MockResponse().setResponseCode(200).setBody("{}").setHeader("Content-Type", "application/json")); var done = 0
-        vm.editListed(9, ManualRules.listedEdit("L", "5", "HL", "unspecified", "2024-01-01", "50", TODAY)) { done++ }
+        env.server.enqueue(MockResponse().setResponseCode(200).setBody("{}").setHeader("Content-Type", "application/json")); val done = java.util.concurrent.atomic.AtomicInteger()
+        vm.editListed(9, ManualRules.listedEdit("L", "5", "HL", "unspecified", "2024-01-01", "50", TODAY)) { done.incrementAndGet() }
         await(vm.ui) { it.message != null }
-        val r = next(); assertEquals("PATCH", r.method); assertEquals("/api/portfolio/manual/9", r.path); assertEquals(JsonNull, body(r)["account_kind"]); assertEquals(1, done)
+        val r = next(); assertEquals("PATCH", r.method); assertEquals("/api/portfolio/manual/9", r.path); assertEquals(JsonNull, body(r)["account_kind"]); waitFor { done.get() == 1 }; assertEquals(1, done.get())
     }
     @Test fun sellPostsToSellEndpoint() {
         env.json("""{"holding":{"id":9}}""")
@@ -232,10 +234,10 @@ class ManualViewModelTest {
         val r = next(); assertEquals("POST", r.method); assertEquals("/api/portfolio/manual/9/sell", r.path); assertEquals("4", body(r).s("quantity_sold"))
     }
     @Test fun removeDeletesAndToleratesNoContent() {
-        env.server.enqueue(MockResponse().setResponseCode(204)); var done = 0
-        vm.remove(12) { done++ }
+        env.server.enqueue(MockResponse().setResponseCode(204)); val done = java.util.concurrent.atomic.AtomicInteger()
+        vm.remove(12) { done.incrementAndGet() }
         await(vm.ui) { it.message == "Position removed." }
-        val r = next(); assertEquals("DELETE", r.method); assertEquals("/api/portfolio/manual/12", r.path); assertEquals(1, done)
+        val r = next(); assertEquals("DELETE", r.method); assertEquals("/api/portfolio/manual/12", r.path); waitFor { done.get() == 1 }; assertEquals(1, done.get())
     }
     @Test fun sectorOverridePutsTickerAndSector() {
         env.json("""{"ticker":"AAPL","sector":"Technology"}""")
@@ -255,9 +257,9 @@ class ManualViewModelTest {
         assertEquals("Session expired. Please sign in again.", await(vm.ui) { it.error != null }.error)
     }
     @Test fun networkFailureLeavesNoSuccessMessage() {
-        env.server.shutdown(); var done = 0
-        vm.create(valid()) { done++ }
-        val ui = await(vm.ui) { it.error != null }; assertEquals(0, done); assertNull(ui.message)
+        env.server.shutdown(); val done = java.util.concurrent.atomic.AtomicInteger()
+        vm.create(valid()) { done.incrementAndGet() }
+        val ui = await(vm.ui) { it.error != null }; assertEquals(0, done.get()); assertNull(ui.message)
         env = TestEnv()
     }
     @Test fun secondTapWhileBusyIsIgnored() {

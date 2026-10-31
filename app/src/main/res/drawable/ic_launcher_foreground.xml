@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pulse: green while rising, red while falling, green again, ending in one blue arrowhead. Kept inside the 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#1A2F6FE4" android:pathData="M24,72 L42,48 L58,68 L77,39 L77,86 L24,86 Z" />
+    <path android:strokeColor="#B9AE95" android:strokeWidth="1.5" android:strokeAlpha="0.7" android:pathData="M22,86 L86,86" />
+    <path android:strokeColor="#16A34A" android:strokeWidth="9" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M24,72 L42,48" />
+    <path android:strokeColor="#E5484D" android:strokeWidth="9" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M42,48 L58,68" />
+    <path android:strokeColor="#16A34A" android:strokeWidth="9" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M58,68 L77,39" />
+    <path android:strokeColor="#2F6FE4" android:strokeWidth="8" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M82.2,44.8 L80,34 L69.2,36.2" />
+</vector>

@@ -33,3 +33,26 @@ adb shell am broadcast -n com.rushify.mobile/.DebugLoginReceiver --es server htt
 * Cleartext is allowed (self-hosted IP:port) but gated: URL validation, one-time "not encrypted" confirmation, persistent warning chip, no HTTPS→HTTP redirects.
 * Optional: hide balances, block screenshots (FLAG_SECURE), biometric lock.
 * No credentials or server addresses are baked into the app.
+
+## Releases (APK for testers)
+
+Publishing a GitHub release builds a signed APK and attaches it to that release. Testers download it from the release page.
+
+**One-time setup** (needs the GitHub CLI logged in as the repo owner):
+
+```bash
+gh auth login
+scripts/set-github-secrets.sh
+```
+
+This copies the local signing key (`keystore.properties` and the `.jks` it points at, never committed) into repository secrets, so every release is signed with the same key and installs as an update over the previous one. Back the key up: losing it means testers must uninstall and reinstall.
+
+**Cut a release:** GitHub → Releases → Draft a new release → new tag such as `v0.2.0` → Publish. Or:
+
+```bash
+gh release create v0.2.0 --generate-notes
+```
+
+The `Release APK` workflow runs the unit tests, builds `Rushify-0.2.0.apk` (the tag becomes the version name, the run number the version code), checks the signature and uploads the APK plus a `.sha256` file to the release. A manual run (Actions → Release APK → Run workflow) builds a signed APK and keeps it as a workflow artifact without publishing anything.
+
+**Installing:** open the APK on the phone, allow installs from that app when asked, install, then enter your server address. Private repository: testers need read access to the repo to download release files. `CI` runs unit tests, lint and a debug build on every push and pull request.

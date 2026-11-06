@@ -7,6 +7,7 @@ import android.content.Context
 import androidx.room.Room
 import com.rushify.mobile.data.CacheDb
 import com.rushify.mobile.data.EncryptedKeyValueStore
+import com.rushify.mobile.data.IconLoader
 import com.rushify.mobile.data.Network
 import com.rushify.mobile.data.RushifyRepository
 import com.rushify.mobile.data.SessionManager
@@ -16,6 +17,7 @@ class AppContainer(context: Context) {
     val session: SessionManager = SessionManager(openStore(context))
     private val db = Room.databaseBuilder(context, CacheDb::class.java, "rushify-cache.db").fallbackToDestructiveMigration(true).build()
     val repo = RushifyRepository(Network.api(session), session, db.dao())
+    val icons = IconLoader(IconLoader.client(session, context.cacheDir))
 
     private fun openStore(context: Context): EncryptedKeyValueStore = try {
         EncryptedKeyValueStore(context)

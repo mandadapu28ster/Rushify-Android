@@ -9,6 +9,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.rushify.mobile.ui.AppRoot
+import androidx.compose.runtime.CompositionLocalProvider
+import com.rushify.mobile.ui.LocalIconLoader
 import com.rushify.mobile.ui.RushifyTheme
 
 class MainActivity : FragmentActivity() {
@@ -21,7 +23,9 @@ class MainActivity : FragmentActivity() {
         val container = (application as RushifyApp).container
         setContent {
             RushifyTheme {
-                AppRoot(container, this)
+                CompositionLocalProvider(LocalIconLoader provides container.icons) {
+                    AppRoot(container, this)
+                }
             }
         }
     }

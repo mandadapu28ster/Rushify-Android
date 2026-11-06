@@ -121,6 +121,7 @@ fun SectorContent(rows: List<HoldingRow>, ccy: String, hide: Boolean) {
             current.holdings.forEachIndexed { i, h ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Dot(Palette.SectorPie[i % Palette.SectorPie.size]); Spacer(Modifier.padding(start = 8.dp))
+                    StockIcon(h.ticker); Spacer(Modifier.padding(start = 8.dp))
                     Column(Modifier.weight(1f)) { Num(h.ticker, bold = true, size = 13); h.name?.let { Muted(it) } }
                     Column(horizontalAlignment = Alignment.End) {
                         Num(Fmt.money(h.value, ccy, hide), size = 12)
@@ -154,7 +155,8 @@ fun PositionSizeSection(rows: List<HoldingRow>, ccy: String, hide: Boolean, acc:
             }
             Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Num(b.ticker, bold = true, size = 12); Num(Fmt.money(b.value, ccy, hide), size = 12)
+                    Row(verticalAlignment = Alignment.CenterVertically) { StockIcon(b.ticker, size = 20.dp); Spacer(Modifier.padding(start = 6.dp)); Num(b.ticker, bold = true, size = 12) }
+                    Num(Fmt.money(b.value, ccy, hide), size = 12)
                 }
                 HBar(segs, scale)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

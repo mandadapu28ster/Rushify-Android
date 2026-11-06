@@ -55,5 +55,20 @@ class DeviceEnv {
         session.saveLogin("jwt", Me(id = 7, username = "TestUser"))
     }
 
-    fun close() { server.shutdown(); db.close() }
+    /**
+     * View models started by a test keep refreshing and caching after the assertions are done. Closing the in-memory database
+     * under them throws on a background coroutine and takes down the whole instrumentation process, so let requests go quiet first.
+     */
+    private fun settle() {
+        var last = -1; var stable = 0
+        val end = System.currentTimeMillis() + 3_000
+        while (System.currentTimeMillis() < end && stable < 3) {
+            val n = requests.size
+            if (n == last) stable++ else { stable = 0; last = n }
+            Thread.sleep(100)
+        }
+        Thread.sleep(150)   // the cache write that follows the last response
+    }
+
+    fun close() { settle(); server.shutdown(); db.close() }
 }

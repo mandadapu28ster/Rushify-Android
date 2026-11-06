@@ -146,7 +146,7 @@ class HoldingsParityUiTest {
         tap("multi_MSFT")
         // lot 12 has no purchase date or GBP cost, lot 11 has both
         see("Lot · no date · id 12", sub = true)
-        rule.onAllNodesWithText("Lot · no date · id 12", substring = true)[0].performClick()
+        rule.onAllNodesWithText("Lot · no date · id 12", substring = true)[0].performScrollTo().performClick()
         waitText("Purchase & cost (GBP): not set", sub = true)
     }
 }

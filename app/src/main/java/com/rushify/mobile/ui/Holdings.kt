@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -270,7 +271,8 @@ private fun MultiHeader(m: HoldingItem.Multi, kind: GroupKind, ccy: String, hide
     val pnl = m.rows.mapNotNull { it.pnlStockBase }.takeIf { it.isNotEmpty() }?.fold(BigDecimal.ZERO, BigDecimal::add)
     Column(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 6.dp, vertical = 6.dp).testTag("multi_${m.ticker}")) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Num(m.ticker, bold = true); Num(Fmt.money(value, ccy, hide))
+            Row(verticalAlignment = Alignment.CenterVertically) { StockIcon(m.ticker); Spacer(Modifier.width(10.dp)); Num(m.ticker, bold = true) }
+            Num(Fmt.money(value, ccy, hide))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Muted("${m.rows.size} $noun · total qty ${Fmt.quantity(m.rows.fold(BigDecimal.ZERO) { a, r -> a + (r.quantity ?: BigDecimal.ZERO) })} ${if (open) "▲" else "▼"}")
@@ -288,11 +290,14 @@ private fun RowLine(
     val isPrimary = rollup == null || primary[HoldingsLogic.rollupIdentityKey(rollup)] == HoldingsLogic.rowSlotId(r)
     val sold = HoldingsLogic.isManualListedSold(r)
     Row(Modifier.fillMaxWidth().clickable { onPick(r, rollup, isPrimary) }.padding(horizontal = 6.dp, vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Column(Modifier.weight(1f)) {
-            Num(HoldingsLogic.displayTicker(r, rollup), bold = true)
-            Muted(lotLabel ?: r.instrumentName ?: r.sector ?: "")
-            val tags = listOfNotNull(if (sold) "Sold" else null, rollup?.let { HoldingsLogic.rollupExposureLabel(it.exposure) })
-            if (tags.isNotEmpty()) Text(tags.joinToString(" · "), color = if (sold) RColors.Warn else RColors.Muted, fontSize = 10.sp)
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            if (HoldingsLogic.isListedAssetKind(r.assetKind)) { StockIcon(rollup?.yahooTicker?.takeIf { it.isNotBlank() } ?: r.ticker); Spacer(Modifier.width(10.dp)) }
+            Column(Modifier.weight(1f)) {
+                Num(HoldingsLogic.displayTicker(r, rollup), bold = true)
+                Muted(lotLabel ?: r.instrumentName ?: r.sector ?: "")
+                val tags = listOfNotNull(if (sold) "Sold" else null, rollup?.let { HoldingsLogic.rollupExposureLabel(it.exposure) })
+                if (tags.isNotEmpty()) Text(tags.joinToString(" · "), color = if (sold) RColors.Warn else RColors.Muted, fontSize = 10.sp)
+            }
         }
         Column(horizontalAlignment = Alignment.End) {
             Num(Fmt.money(r.marketValueBase, ccy, hide))
@@ -354,7 +359,10 @@ fun DividendsBlock(l: RollupLine, base: String, hide: Boolean) {
 @Composable
 fun HoldingDetail(r: HoldingRow, ccy: String, hide: Boolean, rollup: RollupLine? = null, primary: Boolean = true, actions: (@Composable () -> Unit)? = null) {
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp).testTag("holding_detail"), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Num(HoldingsLogic.displayTicker(r, rollup), size = 20, bold = true)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (HoldingsLogic.isListedAssetKind(r.assetKind)) { StockIcon(rollup?.yahooTicker?.takeIf { it.isNotBlank() } ?: r.ticker, size = 36.dp); Spacer(Modifier.width(12.dp)) }
+            Num(HoldingsLogic.displayTicker(r, rollup), size = 20, bold = true)
+        }
         Muted(listOfNotNull(r.instrumentName, r.brokerLabel).joinToString(" · "))
         val sold = HoldingsLogic.isManualListedSold(r)
         val tags = listOfNotNull(if (sold) "Sold" else null, rollup?.let { HoldingsLogic.rollupExposureLabel(it.exposure) })

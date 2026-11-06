@@ -434,6 +434,7 @@ private fun WatchItemCard(it: WatchItem, busy: Boolean, onToggleNews: () -> Unit
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    StockIcon(it.yahooSymbol, size = 24.dp); Spacer(Modifier.width(8.dp))
                     Num(it.yahooSymbol, bold = true, size = 14)
                     if (WatchlistFormat.isIndexLike(it.quoteType)) { Spacer(Modifier.width(6.dp)); Text("INDEX / FUND", color = RColors.Accent, fontSize = 9.sp) }
                 }

@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.List
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -94,6 +93,9 @@ fun AppRoot(container: AppContainer, activity: FragmentActivity) {
     var privacy by remember { mutableStateOf(session.screenPrivacy) }
     var bio by remember { mutableStateOf(session.biometricLock) }
     var notif by remember { mutableStateOf(session.notificationsEnabled) }
+    var colorBlind by remember { mutableStateOf(session.colorBlindPalette) }
+    var lockTimeout by remember { mutableStateOf(session.lockTimeoutSec) }
+    androidx.compose.runtime.SideEffect { RColors.colorBlind = colorBlind }
 
     LaunchedEffect(privacy) { (activity as? MainActivity)?.applyScreenPrivacy(privacy) }
 
@@ -104,11 +106,22 @@ fun AppRoot(container: AppContainer, activity: FragmentActivity) {
         ) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
-    // Biometric lock: lock on every return from background, prompt to unlock.
-    var locked by remember { mutableStateOf(session.biometricLock && session.current.loggedIn) }
+    // App lock: starts locked, and locks again once the app has been in the background for the chosen time (0 = every time).
+    var locked by remember { mutableStateOf(LockRules.startsLocked(session.biometricLock, session.current.loggedIn)) }
+    var lockFailed by remember { mutableStateOf(false) }
+    val backgroundedAt = remember { LongArray(1) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    DisposableEffect(lifecycle, bio) {
-        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_STOP && bio && session.current.loggedIn) locked = true }
+    DisposableEffect(lifecycle, bio, lockTimeout) {
+        val obs = LifecycleEventObserver { _, e ->
+            when (e) {
+                Lifecycle.Event.ON_STOP -> if (backgroundedAt[0] == 0L) backgroundedAt[0] = android.os.SystemClock.elapsedRealtime()
+                Lifecycle.Event.ON_START -> {
+                    if (LockRules.shouldLock(bio, session.current.loggedIn, locked, backgroundedAt[0], android.os.SystemClock.elapsedRealtime(), lockTimeout)) locked = true
+                    backgroundedAt[0] = 0L
+                }
+                else -> {}
+            }
+        }
         lifecycle.addObserver(obs); onDispose { lifecycle.removeObserver(obs) }
     }
     val authenticators = if (Build.VERSION.SDK_INT >= 30) BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.DEVICE_CREDENTIAL else BiometricManager.Authenticators.BIOMETRIC_WEAK
@@ -117,7 +130,8 @@ fun AppRoot(container: AppContainer, activity: FragmentActivity) {
         val info = BiometricPrompt.PromptInfo.Builder().setTitle("Unlock Rushify").setAllowedAuthenticators(authenticators)
             .apply { if (Build.VERSION.SDK_INT < 30) setNegativeButtonText("Cancel") }.build()
         BiometricPrompt(activity, ContextCompat.getMainExecutor(activity), object : BiometricPrompt.AuthenticationCallback() {
-            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { locked = false }
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { locked = false; lockFailed = false }
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) { lockFailed = true }
         }).authenticate(info)
     }
     LaunchedEffect(locked) { if (locked && bio) prompt() }
@@ -127,15 +141,14 @@ fun AppRoot(container: AppContainer, activity: FragmentActivity) {
             when {
                 st.serverUrl == null -> ConnectScreen(auth, "")
                 !st.loggedIn -> { LaunchedEffect(st.serverUrl) { auth.loadHealth() }; LoginScreen(auth, st.serverUrl!!, st.expired) }
-                locked && bio -> Column(Modifier.fillMaxSize(), verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Rushify is locked", color = RColors.Text)
-                    Button(onClick = ::prompt, modifier = Modifier.padding(top = 12.dp)) { Text("Unlock") }
-                }
+                locked && bio -> LockScreen(lockFailed, ::prompt)
                 else -> MainScaffold(f, container, st.cleartext, st.cacheScope, st.isAdmin,
                     hide, { hide = it; session.hideBalances = it },
                     privacy, { privacy = it; session.screenPrivacy = it },
                     bio, bioAvailable, { bio = it; session.biometricLock = it },
                     notif, { notif = it; session.notificationsEnabled = it },
+                    colorBlind, { colorBlind = it; session.colorBlindPalette = it },
+                    lockTimeout, { lockTimeout = it; session.lockTimeoutSec = it },
                     onLogout = { scope.launch { session.logout(); container.repo.wipeCache() } })
             }
         }
@@ -147,6 +160,7 @@ private fun MainScaffold(
     f: ViewModelProvider.Factory, container: AppContainer, cleartext: Boolean, scopeKey: String, isAdmin: Boolean,
     hide: Boolean, onHide: (Boolean) -> Unit, privacy: Boolean, onPrivacy: (Boolean) -> Unit,
     bio: Boolean, bioAvailable: Boolean, onBio: (Boolean) -> Unit, notif: Boolean, onNotif: (Boolean) -> Unit,
+    colorBlind: Boolean, onColorBlind: (Boolean) -> Unit, lockTimeout: Int, onLockTimeout: (Int) -> Unit,
     onLogout: () -> Unit,
 ) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
@@ -197,8 +211,8 @@ private fun MainScaffold(
             }
         },
     ) { pad ->
+        CompositionLocalProvider(LocalCleartext provides cleartext) {
         Column(Modifier.fillMaxSize().padding(pad)) {
-            if (cleartext) Banner("Not encrypted (http) — avoid public Wi-Fi", RColors.Warn, Modifier.padding(horizontal = 12.dp, vertical = 4.dp).testTag("http_chip"))
             Box(Modifier.weight(1f)) {
                 val d = dest?.let { n -> Dest.entries.firstOrNull { it.name == n } }
                 if (d != null) when (d) {
@@ -211,11 +225,12 @@ private fun MainScaffold(
                     Dest.AddManual -> AddManualScreen(manual, onBack = { dest = null }, onChanged = onWritten)
                     Dest.Password -> ChangePasswordScreen(password) { dest = null }
                 } else when (Tab.entries[tab]) {
-                    Tab.Home -> HomeScreen(dashboard, onOpen = open, isAdmin = isAdmin, wealth = wealth)
+                    Tab.Home -> HomeScreen(dashboard, onToggleHide = { onHide(!hide) }, onOpen = open, isAdmin = isAdmin, wealth = wealth)
                     Tab.Pulse -> PulseScreen(radar, news, watch)
-                    Tab.More -> MoreScreen(container.session, hide, onHide, privacy, onPrivacy, bio, bioAvailable, onBio, notif, onNotif, onLogout, open, attention)
+                    Tab.More -> MoreScreen(container.session, hide, onHide, privacy, onPrivacy, bio, bioAvailable, onBio, notif, onNotif, onLogout, open, attention, colorBlind, onColorBlind, lockTimeout, onLockTimeout)
                 }
             }
+        }
         }
     }
 }

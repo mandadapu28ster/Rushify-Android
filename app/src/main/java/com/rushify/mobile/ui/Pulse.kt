@@ -20,7 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -177,12 +176,10 @@ fun PulseScreen(radar: RadarViewModel, news: NewsViewModel, watch: WatchlistsVie
     var tab by rememberSaveable { mutableStateOf(0) }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)) {
-            Text("Pulse", color = RColors.Text, fontSize = 24.sp)
+            TabHeader("Pulse")
             Muted("Market news, watchlists and radar.")
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Radar", "News", "Watchlists").forEachIndexed { i, t -> Chip(t, tab == i) { tab = i } }
-            }
+            Spacer(Modifier.height(10.dp))
+            RSegmented(listOf("Radar", "News", "Watchlists"), listOf("Radar", "News", "Watchlists")[tab], { it }, { sel -> tab = listOf("Radar", "News", "Watchlists").indexOf(sel) }, tagPrefix = "pulse_tab_")
         }
         when (tab) {
             0 -> RadarTab(radar)
@@ -407,7 +404,7 @@ private fun WatchlistTab(vm: WatchlistsViewModel) {
 @Composable
 private fun SymbolSearch(sr: SymbolSearchUi, fetchNews: Boolean, onFetchNews: (Boolean) -> Unit, onQuery: (String) -> Unit, onPick: (SymbolHit) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-        OutlinedTextField(sr.query, onQuery, singleLine = true, label = { Text("Search company or ticker") }, placeholder = { Text("e.g. Apple or AAPL") }, modifier = Modifier.fillMaxWidth().testTag("watch_search"))
+        RField(sr.query, onQuery, "Search company or ticker (e.g. Apple or AAPL)", Modifier.testTag("watch_search"))
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) { Switch(fetchNews, onFetchNews, modifier = Modifier.testTag("watch_fetch_news_default")); Spacer(Modifier.width(8.dp)); Muted("Fetch news for this symbol") }
         if (sr.searching) Muted("Searching…")
         sr.results.forEach { h ->

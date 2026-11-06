@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -88,9 +87,9 @@ fun ChangePasswordScreen(vm: ChangePasswordViewModel, onBack: () -> Unit) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Muted("Choose a new password (at least ${PasswordRules.MIN} characters). You will be signed out everywhere and asked to sign in with the new password.")
             val pw = KeyboardOptions(keyboardType = KeyboardType.Password)
-            OutlinedTextField(cur, { cur = it }, singleLine = true, label = { Text("Current password") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = pw, modifier = Modifier.fillMaxWidth().testTag("pw_current"))
-            OutlinedTextField(new, { new = it }, singleLine = true, label = { Text("New password") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = pw, modifier = Modifier.fillMaxWidth().testTag("pw_new"))
-            OutlinedTextField(conf, { conf = it }, singleLine = true, label = { Text("Confirm new password") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = pw, modifier = Modifier.fillMaxWidth().testTag("pw_confirm"))
+            RField(cur, { cur = it }, "Current password", Modifier.testTag("pw_current"), visualTransformation = PasswordVisualTransformation(), keyboardOptions = pw)
+            RField(new, { new = it }, "New password", Modifier.testTag("pw_new"), visualTransformation = PasswordVisualTransformation(), keyboardOptions = pw)
+            RField(conf, { conf = it }, "Confirm new password", Modifier.testTag("pw_confirm"), visualTransformation = PasswordVisualTransformation(), keyboardOptions = pw)
             s.error?.let { Banner(it, RColors.Loss, Modifier.testTag("pw_error")) }
             if (s.done) Banner("Password updated. Please sign in with your new password.", RColors.Gain, Modifier.testTag("pw_done"))
             Spacer(Modifier.height(4.dp))

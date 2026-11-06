@@ -10,6 +10,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.assertTextEquals
@@ -59,6 +60,7 @@ class Phase5HoldingsWriteUiTest {
     private fun found(m: SemanticsMatcher) = rule.onAllNodes(m).fetchSemanticsNodes().isNotEmpty()
     private fun reveal(m: SemanticsMatcher): Boolean {
         if (found(m)) return true
+        runCatching { list.performScrollToNode(m); rule.waitForIdle() }; if (found(m)) return true
         repeat(40) { list.performTouchInput { swipeUp(startY = height * 0.75f, endY = height * 0.5f) }; rule.waitForIdle(); if (found(m)) return true }
         repeat(40) { list.performTouchInput { swipeDown(startY = height * 0.5f, endY = height * 0.75f) }; rule.waitForIdle(); if (found(m)) return true }
         return false
@@ -203,7 +205,7 @@ class Phase5AddHoldingUiTest {
         rule.waitUntil(10_000) { found(hasTestTag("hit_VOD")) }
         tap("hit_VOD")
         rule.waitUntil(10_000) { found(hasTestTag("quote_info")) }
-        rule.onNodeWithTag("f_symbol").assertTextEquals("Symbol", "VOD.L")
+        rule.onNodeWithTag("f_symbol").assertTextEquals("VOD.L")
         type("f_qty", "100"); type("f_broker", "Hargreaves"); tap("kind_isa"); type("f_date", LocalDate.now().minusDays(30).toString()); type("f_cost", "£1,234.50")
         tap("form_save")
         rule.waitUntil(10_000) { env.written.any { it.startsWith("POST /api/portfolio/manual ") } }

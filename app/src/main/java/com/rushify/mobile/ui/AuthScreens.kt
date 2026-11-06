@@ -13,10 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -124,22 +121,22 @@ class AuthViewModel(private val repo: RushifyRepository) : ViewModel() {
 fun ConnectScreen(vm: AuthViewModel, initial: String) {
     val ui by vm.ui.collectAsState()
     var url by rememberSaveable { mutableStateOf(initial) }
-    Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.Center) {
-        Text("Rushify", color = RColors.Accent, fontSize = 34.sp, fontWeight = FontWeight.Bold)
-        Muted("Connect to your Rushify server")
-        Spacer(Modifier.height(24.dp))
-        OutlinedTextField(
-            value = url, onValueChange = { url = it }, singleLine = true, label = { Text("Server address") },
-            placeholder = { Text("https://rushify.example.com or http://192.168.1.20:8040") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            modifier = Modifier.fillMaxWidth().testTag("server_url"),
-        )
-        Spacer(Modifier.height(8.dp))
-        Muted("HTTPS is recommended. Plain http:// works for a public or private IP with a port, but traffic is not encrypted.")
-        ui.error?.let { Spacer(Modifier.height(10.dp)); Banner(it, RColors.Loss) }
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = { vm.connect(url) }, enabled = !ui.busy, modifier = Modifier.fillMaxWidth().testTag("connect")) {
-            if (ui.busy) CircularProgressIndicator(Modifier.height(18.dp), strokeWidth = 2.dp, color = RColors.Bg) else Text("Test connection")
+    AuthBackground {
+        Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.Center) {
+            RushifyMark(76.dp)
+            Spacer(Modifier.height(14.dp))
+            Text("Rushify", color = RColors.Text, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+            Muted("Connect to your Rushify server")
+            Spacer(Modifier.height(24.dp))
+            RField(url, { url = it }, "Server address", Modifier.testTag("server_url"), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri))
+            Spacer(Modifier.height(8.dp))
+            Muted("HTTPS is recommended. Plain http:// works for a public or private IP with a port, but traffic is not encrypted.")
+            ui.error?.let { Spacer(Modifier.height(10.dp)); Banner(it, RColors.Loss) }
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = { vm.connect(url) }, enabled = !ui.busy, modifier = Modifier.fillMaxWidth().testTag("connect")) {
+                Text(if (ui.busy) "Testing…" else "Test connection")
+            }
+            Spacer(Modifier.height(80.dp))
         }
     }
     ui.confirmCleartext?.let { u ->
@@ -159,26 +156,29 @@ fun LoginScreen(vm: AuthViewModel, server: String, expired: Boolean) {
     val ui by vm.ui.collectAsState()
     var user by rememberSaveable { mutableStateOf("") }
     var pass by rememberSaveable { mutableStateOf("") }
-    Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.Center) {
-        Text("Sign in", color = RColors.Text, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-        Muted(server + (ui.health?.let { " · v${it.version}" } ?: ""))
-        if (server.startsWith("http://")) { Spacer(Modifier.height(8.dp)); Banner("Not encrypted (http). Your password is sent in clear text.") }
-        ui.versionWarning?.let { Spacer(Modifier.height(8.dp)); Banner(it) }
-        if (expired) { Spacer(Modifier.height(8.dp)); Banner("Your session expired. Please sign in again.") }
-        Spacer(Modifier.height(20.dp))
-        OutlinedTextField(user, { user = it }, singleLine = true, label = { Text("Username or email") }, enabled = !ui.locked, modifier = Modifier.fillMaxWidth().testTag("username"))
-        Spacer(Modifier.height(10.dp))
-        OutlinedTextField(
-            pass, { pass = it }, singleLine = true, label = { Text("Password") }, enabled = !ui.locked,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth().testTag("password"),
-        )
-        ui.error?.let { Spacer(Modifier.height(10.dp)); Banner(it, RColors.Loss, Modifier.testTag("login_error")) }
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = { vm.login(user, pass) }, enabled = !ui.busy && !ui.locked && user.isNotBlank() && pass.isNotEmpty(), modifier = Modifier.fillMaxWidth().testTag("sign_in")) {
-            if (ui.busy) CircularProgressIndicator(Modifier.height(18.dp), strokeWidth = 2.dp, color = RColors.Bg) else Text("Sign in")
+    AuthBackground {
+        Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.Center) {
+            RushifyMark(64.dp)
+            Spacer(Modifier.height(14.dp))
+            Text("Sign in", color = RColors.Text, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+            Muted(server + (ui.health?.let { " · v${it.version}" } ?: ""))
+            if (server.startsWith("http://")) { Spacer(Modifier.height(8.dp)); Banner("Not encrypted (http). Your password is sent in clear text.") }
+            ui.versionWarning?.let { Spacer(Modifier.height(8.dp)); Banner(it) }
+            if (expired) { Spacer(Modifier.height(8.dp)); Banner("Your session expired. Please sign in again.", RColors.Accent) }
+            Spacer(Modifier.height(20.dp))
+            RField(user, { user = it }, "Username or email", Modifier.testTag("username"), enabled = !ui.locked)
+            Spacer(Modifier.height(10.dp))
+            RField(
+                pass, { pass = it }, "Password", Modifier.testTag("password"), enabled = !ui.locked,
+                visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            )
+            ui.error?.let { Spacer(Modifier.height(10.dp)); Banner(it, RColors.Loss, Modifier.testTag("login_error")) }
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = { vm.login(user, pass) }, enabled = !ui.busy && !ui.locked && user.isNotBlank() && pass.isNotEmpty(), modifier = Modifier.fillMaxWidth().testTag("sign_in")) {
+                Text(if (ui.busy) "Signing in…" else "Sign in")
+            }
+            TextButton(onClick = vm::changeServer, colors = ButtonDefaults.textButtonColors(contentColor = RColors.Muted)) { Text("Change server", fontSize = 14.sp) }
+            Spacer(Modifier.height(60.dp))
         }
-        TextButton(onClick = vm::changeServer, colors = ButtonDefaults.textButtonColors(contentColor = RColors.Muted)) { Text("Change server") }
     }
 }

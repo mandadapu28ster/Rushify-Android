@@ -102,7 +102,7 @@ class NewScreensUiTest {
     @Test fun serverErrorShowsRetryInsteadOfBlankScreen() {
         env.route("GET", "/api/portfolio/growth") { env.ok("down", 503) }
         showPerformance()
-        waitText("Retry")
+        waitText("Try again")
     }
 
     @Test fun backChevronCallsOnBack() {

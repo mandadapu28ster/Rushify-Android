@@ -2,6 +2,18 @@ package com.rushify.mobile.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,7 +25,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -147,16 +158,33 @@ fun ManualActions(t: DetailTarget, onForm: (ManualForm) -> Unit) {
 
 @Composable
 private fun ActionBtn(text: String, tag: String, danger: Boolean = false, onClick: () -> Unit) {
-    Button(onClick, modifier = Modifier.testTag(tag), colors = if (danger) ButtonDefaults.buttonColors(containerColor = RColors.Variant, contentColor = RColors.Loss) else ButtonDefaults.buttonColors(containerColor = RColors.Variant, contentColor = RColors.Text)) { Text(text) }
+    SecondaryButton(onClick, modifier = Modifier.testTag(tag), destructive = danger) { Text(text) }
 }
 
+/** Form field: a small label above a 48dp grey field that gets an accent outline when focused. The hint is the placeholder. */
 @Composable
 fun Field(label: String, value: String, onChange: (String) -> Unit, tag: String, number: Boolean = false, enabled: Boolean = true, hint: String? = null) {
-    OutlinedTextField(
-        value, onChange, singleLine = true, enabled = enabled, label = { Text(label) }, supportingText = hint?.let { { Text(it) } },
-        keyboardOptions = if (number) KeyboardOptions(keyboardType = KeyboardType.Decimal) else KeyboardOptions.Default,
-        modifier = Modifier.fillMaxWidth().testTag(tag),
-    )
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(12.dp)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, color = RColors.Muted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        BasicTextField(
+            value, onChange, enabled = enabled, singleLine = true,
+            keyboardOptions = if (number) KeyboardOptions(keyboardType = KeyboardType.Decimal) else KeyboardOptions.Default,
+            textStyle = TextStyle(color = RColors.Text, fontSize = 16.sp), cursorBrush = SolidColor(RColors.Accent),
+            modifier = Modifier.fillMaxWidth().testTag(tag).onFocusChanged { focused = it.isFocused },
+            decorationBox = { inner ->
+                Box(
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(shape).background(RColors.Variant)
+                        .border(if (focused) 1.5.dp else 1.dp, if (focused) RColors.Accent else Color.Transparent, shape).padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    if (value.isEmpty()) Text(hint ?: if (number) "0.00" else "", color = RColors.Muted.copy(alpha = 0.6f), fontSize = 16.sp)
+                    inner()
+                }
+            },
+        )
+    }
 }
 
 @Composable

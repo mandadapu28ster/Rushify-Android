@@ -3,6 +3,7 @@ package com.rushify.mobile
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -50,6 +51,7 @@ class HoldingsParityUiTest {
     private fun snap() { Regex("Text = '\\[(.*?)\\]'").findAll(rule.onRoot(useUnmergedTree = true).printToString(maxDepth = 25)).forEach { seenTexts += it.groupValues[1] } }
     private fun reveal(m: SemanticsMatcher): Boolean {
         if (found(m)) return true
+        runCatching { list.performScrollToNode(m); rule.waitForIdle() }; if (found(m)) return true
         repeat(40) { list.performTouchInput { swipeUp(startY = height * 0.75f, endY = height * 0.5f) }; rule.waitForIdle(); snap(); if (found(m)) return true }
         repeat(40) { list.performTouchInput { swipeDown(startY = height * 0.5f, endY = height * 0.75f) }; rule.waitForIdle(); if (found(m)) return true }
         return false
@@ -138,7 +140,7 @@ class HoldingsParityUiTest {
         waitText("BRK.B")                                   // BRK-B on the dashboard, linked to the BRK.B rollup
         tapText("GOOGL")
         waitText("Broker cash dividends"); waitText("8 payouts"); waitText("Total (GBP): £59.73"); waitText("Broker fees")
-        waitText("P/B"); waitText("PEG"); waitText("P/S"); waitText("Revenue")
+        waitText("POSITION"); waitText("FEES & DIVIDENDS"); waitText("No fundamentals data for this holding.")   // groups with no data are hidden, like iOS
     }
 
     @Test fun manualLotWithoutCostBasisSaysSo() {

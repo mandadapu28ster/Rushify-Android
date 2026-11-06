@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
@@ -175,11 +174,7 @@ fun CorporateScreen(vm: CorporateViewModel, maps: TickerMapsViewModel, onBack: (
                         }
                         Muted("Match in use: ${it.yahooSymbol ?: Fmt.DASH}")
                         Spacer(Modifier.height(6.dp))
-                        androidx.compose.material3.OutlinedTextField(
-                            value = drafts[it.sourceKey] ?: it.yahooSymbol.orEmpty(), onValueChange = { v -> drafts[it.sourceKey] = v },
-                            singleLine = true, label = { Text("Listing symbol") }, enabled = !busy,
-                            modifier = Modifier.fillMaxWidth().testTag("map_input_${it.sourceKey}"),
-                        )
+                        Field("Listing symbol", drafts[it.sourceKey] ?: it.yahooSymbol.orEmpty(), { v -> drafts[it.sourceKey] = v }, "map_input_${it.sourceKey}", enabled = !busy)
                         Spacer(Modifier.height(6.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             Button(onClick = { maps.save(it.sourceKey, drafts[it.sourceKey] ?: it.yahooSymbol.orEmpty(), onMapsChanged) }, enabled = edit.savingKey == null, modifier = Modifier.testTag("map_save_${it.sourceKey}")) { Text(if (busy) "Saving…" else "Save") }

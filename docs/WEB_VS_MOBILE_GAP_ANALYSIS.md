@@ -200,3 +200,14 @@ Online-only (no offline queue): each save shows the server's message on failure 
 - Home no longer has Monzo or Broker sync tiles; Monzo balances stay in Holdings and Net worth by broker, and Monzo sync stays on Sync.
 - More → Monzo (and the standalone Monzo screen) removed.
 - Holdings: only one account group is open at a time (search still opens every match).
+
+## 16. iOS parity (2026-11-06)
+
+The Android app follows the iOS app's design pass. Reference: `Rushify-iOS` (`DesignSystem.swift`, `Theme.swift`, `Components.swift`, `MoreView.swift`).
+
+- **Colour system:** layered dark surfaces (`#0B0E14`, `#151B24`, `#1F2733`, `#28323F`), 1dp white-at-7% hairline borders, no shadows, softer accent/gain/loss/warn colours, categorical chart colours with no red or green. Optional **colour-blind palette** (More > Privacy & security): gain becomes pale blue, loss orange; the whole UI recomposes.
+- **Components:** 16dp cards with press feedback; capsule chips with an outline when selected; 48dp primary and 44dp secondary buttons; a **sliding segmented control** (Pulse, Performance); **skeleton shimmer** cards on first Home load; collapsible sections with a turning arrow, summary/body cross-fade and a soft spring; tabular numerals instead of a monospace font; light haptic ticks on selections.
+- **Shell:** large titles on Home, Pulse and More (inline title with back chevron on pushed screens); the "Not encrypted (http)" pill replaces the full-width banner; eye button on Home for hide-balances; connect and sign-in screens with the brand mark over an accent glow and a disabled-until-valid button; **lock screen** and a lock timeout (immediately, 1, 5, 15 minutes; default 1 minute); "Hide in app switcher" (blanks only the recents thumbnail on Android 13+); font scale capped at 2x.
+- **More:** tinted 32dp icon tiles per section, a Privacy & security card with hairline dividers, Sign out button and a version footer.
+- **Holding detail sheet:** hero (logo, ticker, value, P/L capsule) and uppercase-titled groups POSITION, FEES & DIVIDENDS, VALUATION, QUALITY & INCOME; empty groups are hidden.
+- **Not ported (iOS only):** Liquid Glass tab bar, numeric text roll transitions, system alerts' native look.

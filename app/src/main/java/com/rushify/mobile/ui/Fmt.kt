@@ -52,6 +52,13 @@ object Fmt {
         return plus + money(v, ccy)
     }
 
+    /** A percentage that is a gain or a loss, with an arrow so the direction never relies on colour alone: "▲ 19.32%", "▼ 5.00%". */
+    fun arrowPercent(v: BigDecimal?, scale: Int = 2): String {
+        if (v == null) return DASH
+        val abs = percent(v.abs(), scale)
+        return when (v.signum()) { 1 -> "▲ $abs"; -1 -> "▼ $abs"; else -> abs }
+    }
+
     /** For values already expressed as percent (e.g. weight_pct = 44.41). */
     fun percent(v: BigDecimal?, scale: Int = 2, signed: Boolean = false): String {
         if (v == null) return DASH

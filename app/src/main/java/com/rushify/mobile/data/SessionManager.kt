@@ -105,12 +105,21 @@ class SessionManager(private val store: KeyValueStore) {
     var hideBalances: Boolean
         get() = store.get(K_HIDE) == "1"
         set(v) = store.put(K_HIDE, if (v) "1" else "0")
+    /** "Hide in app switcher": on unless switched off (the iOS default). */
     var screenPrivacy: Boolean
-        get() = store.get(K_PRIVACY) == "1"
+        get() = store.get(K_PRIVACY) != "0"
         set(v) = store.put(K_PRIVACY, if (v) "1" else "0")
     var biometricLock: Boolean
         get() = store.get(K_BIO) == "1"
         set(v) = store.put(K_BIO, if (v) "1" else "0")
+    /** Blue and orange instead of green and red for gains and losses. */
+    var colorBlindPalette: Boolean
+        get() = store.get(K_CB) == "1"
+        set(v) = store.put(K_CB, if (v) "1" else "0")
+    /** Seconds in the background before the app locks again; 0 locks every time. Default one minute. */
+    var lockTimeoutSec: Int
+        get() = store.get(K_LOCK_TIMEOUT)?.toIntOrNull() ?: 60
+        set(v) = store.put(K_LOCK_TIMEOUT, v.toString())
     var notificationsEnabled: Boolean
         get() = store.get(K_NOTIF) != "0"
         set(v) = store.put(K_NOTIF, if (v) "1" else "0")
@@ -122,6 +131,7 @@ class SessionManager(private val store: KeyValueStore) {
         const val K_SERVER = "server"; const val K_TOKEN = "token"; const val K_USER_ID = "user_id"
         const val K_USERNAME = "username"; const val K_CCY = "ccy"; const val K_ACK = "ack:"
         const val K_HIDE = "hide"; const val K_PRIVACY = "privacy"; const val K_BIO = "bio"
+        const val K_CB = "colorblind"; const val K_LOCK_TIMEOUT = "lock_timeout"
         const val K_NOTIF = "notif"; const val K_LAST_SYNC = "last_sync"; const val K_ROLE = "role"
     }
 }

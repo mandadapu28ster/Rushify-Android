@@ -1,6 +1,8 @@
 package com.rushify.mobile.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -94,7 +96,7 @@ private fun AlertsCard(d: Dashboard, onOpen: (Dest) -> Unit, dismiss: DismissUi,
                 dismiss.error?.let { Spacer(Modifier.height(4.dp)); Banner("Could not dismiss: $it", RColors.Loss) }
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    androidx.compose.material3.Button(onClick = { onOpen(Dest.Corporate) }, modifier = Modifier.testTag("review_symbols")) { Text("Review symbols") }
+                    Button(onClick = { onOpen(Dest.Corporate) }, modifier = Modifier.testTag("review_symbols")) { Text("Review symbols") }
                     androidx.compose.material3.TextButton(onClick = onDismissTickers, enabled = !dismiss.busy, modifier = Modifier.testTag("dismiss_symbols")) { Text(if (dismiss.busy) "…" else "Dismiss") }
                 }
             }
@@ -113,7 +115,7 @@ fun unrealisedPct(pnl: BigDecimal?, cost: BigDecimal?): BigDecimal? =
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(vm: DashboardViewModel, onOpen: (Dest) -> Unit = {}, isAdmin: Boolean = false, wealth: WealthViewModel? = null) {
+fun HomeScreen(vm: DashboardViewModel, onToggleHide: () -> Unit = {}, onOpen: (Dest) -> Unit = {}, isAdmin: Boolean = false, wealth: WealthViewModel? = null) {
     val s by vm.state.collectAsState()
     LaunchedEffect(Unit) { vm.load() }
     val hide = LocalHideBalances.current
@@ -121,11 +123,17 @@ fun HomeScreen(vm: DashboardViewModel, onOpen: (Dest) -> Unit = {}, isAdmin: Boo
     val dismiss by vm.dismiss.collectAsState()
     PullToRefreshBox(isRefreshing = s.loading && d != null, onRefresh = vm::refresh, modifier = Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Home", color = RColors.Text, fontSize = 24.sp, modifier = Modifier.testTag("home_title"))
+            TabHeader("Home", titleTag = "home_title") {
+                Icon(
+                    if (hide) RIcons.EyeOff else RIcons.Eye, contentDescription = if (hide) "Show balances" else "Hide balances", tint = RColors.Muted,
+                    modifier = Modifier.size(40.dp).clip(CircleShape).clickable { onToggleHide() }.padding(8.dp).testTag("eye_toggle"),
+                )
+            }
             if (isAdmin) Banner(ADMIN_REMINDER_SHORT, RColors.Accent, Modifier.testTag("admin_reminder_home"))
             AsOfBar(s.data?.fetchedAt, s.error, d != null, s.loading, label = d?.let { "Data as of ${Fmt.stamp(it.asOf)} · prices are end-of-day/cached" })
             if (d == null) {
-                if (s.error != null) ErrorState(s.error!!, vm::refresh) else Muted("Loading your portfolio…")
+                if (s.error != null) ErrorState(s.error!!, vm::refresh)
+                else Column(Modifier.testTag("home_skeleton"), verticalArrangement = Arrangement.spacedBy(12.dp)) { SkeletonCard(3); SkeletonCard(4); SkeletonCard(2) }
             } else DashboardContent(d, hide, onOpen, dismiss, vm::dismissTickerAttention, wealth)
         }
     }
@@ -153,7 +161,7 @@ private fun DashboardContent(d: Dashboard, hide: Boolean, onOpen: (Dest) -> Unit
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 val pct = unrealisedPct(d.totalPnlBase, d.totalCostBase)
-                Stat("Unrealised P/L", Fmt.signedMoney(d.totalPnlBase, ccy, hide) + (if (hide) "" else pct?.let { " (${Fmt.percent(it, signed = true)})" } ?: ""), Modifier.weight(1f), pnlColor(d.totalPnlBase))
+                Stat("Unrealised P/L", Fmt.signedMoney(d.totalPnlBase, ccy, hide) + (if (hide) "" else pct?.let { " (${Fmt.arrowPercent(it)})" } ?: ""), Modifier.weight(1f), pnlColor(d.totalPnlBase))
                 Stat("Realised P/L", Fmt.signedMoney(d.totalRealisedPnlBase, ccy, hide), Modifier.weight(1f), pnlColor(d.totalRealisedPnlBase))
             }
             Spacer(Modifier.height(10.dp))
@@ -198,7 +206,7 @@ private fun PiesSection(d: Dashboard, ccy: String, hide: Boolean, acc: HomeAccor
     val sectors = remember(d.rows) { Sectors.build(d.rows) }
     if (sectors.isEmpty() && d.netWorthBreakdown.isEmpty()) return
     val summary = if (sectors.isEmpty()) "Sector donut and optional net worth split."
-        else "${sectors.size} sectors · listed total ${Fmt.money(sectors.fold(BigDecimal.ZERO) { a, s -> a + s.value }, ccy, hide, 0)}."
+        else "${Fmt.plural(sectors.size, "sector")} · listed total ${Fmt.money(sectors.fold(BigDecimal.ZERO) { a, s -> a + s.value }, ccy, hide, 0)}."
     acc.Section("pies", "Portfolio & net worth", summary) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (sectors.isNotEmpty()) { Muted("Portfolio by sector"); SectorContent(d.rows, ccy, hide) }

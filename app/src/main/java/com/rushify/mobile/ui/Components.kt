@@ -1,6 +1,29 @@
 package com.rushify.mobile.ui
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -39,27 +62,34 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
+/** Surface card: 16dp corners, 1dp hairline border, no shadow. Tappable cards ease to 98.5% and 75% opacity while pressed. */
 @Composable
 fun RCard(modifier: Modifier = Modifier, onClick: (() -> Unit)? = null, content: @Composable () -> Unit) {
-    val base = modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(RColors.Surface)
-    Box(if (onClick != null) base.clickable(onClick = onClick) else base) {
-        Column(Modifier.padding(14.dp)) { content() }
+    val shape = RoundedCornerShape(16.dp)
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed && onClick != null) 0.985f else 1f, tween(120, easing = RMotion.EaseOut), label = "cardScale")
+    val alpha by animateFloatAsState(if (pressed && onClick != null) 0.75f else 1f, tween(120, easing = RMotion.EaseOut), label = "cardAlpha")
+    val base = modifier.fillMaxWidth().graphicsLayer { scaleX = scale; scaleY = scale; this.alpha = alpha }
+        .clip(shape).background(RColors.Surface).border(1.dp, RColors.Hairline, shape)
+    Box(if (onClick != null) base.clickable(interactionSource = source, indication = null, onClick = onClick) else base) {
+        Column(Modifier.padding(16.dp)) { content() }
     }
 }
 
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier) {
-    Text(text, color = RColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, modifier = modifier.padding(top = 6.dp, bottom = 2.dp))
+    Text(text, color = RColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, modifier = modifier.padding(top = 6.dp, bottom = 2.dp))
 }
 
 @Composable
 fun Muted(text: String, modifier: Modifier = Modifier, align: TextAlign? = null) {
-    Text(text, color = RColors.Muted, fontSize = 12.sp, modifier = modifier, textAlign = align)
+    Text(text, color = RColors.Muted, fontSize = 13.sp, modifier = modifier, textAlign = align)
 }
 
 @Composable
 fun Num(text: String, modifier: Modifier = Modifier, color: Color = RColors.Text, size: Int = 14, bold: Boolean = false) {
-    Text(text, color = color, fontFamily = Mono, fontSize = size.sp, fontWeight = if (bold) FontWeight.SemiBold else FontWeight.Normal, modifier = modifier)
+    Text(text, color = color, style = TextStyle(fontFeatureSettings = "tnum"), fontSize = size.sp, fontWeight = if (bold) FontWeight.SemiBold else FontWeight.Normal, modifier = modifier)
 }
 
 fun pnlColor(v: BigDecimal?): Color = when (v.signColorIsGain()) {
@@ -94,27 +124,89 @@ fun AsOfBar(asOfMillis: Long?, error: String?, hasData: Boolean, loading: Boolea
 
 @Composable
 fun Banner(text: String, color: Color = RColors.Warn, modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(color.copy(alpha = 0.14f)).padding(10.dp)) {
+    Box(modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(color.copy(alpha = 0.14f)).border(1.dp, color.copy(alpha = 0.18f), RoundedCornerShape(10.dp)).padding(10.dp)) {
         Text(text, color = color, fontSize = 12.sp)
     }
 }
 
+/** Independent toggle: accent text on a faint accent fill with an accent outline when selected, muted on grey otherwise. 34dp tall. */
 @Composable
 fun Chip(text: String, selected: Boolean, tag: String? = null, onClick: () -> Unit) {
+    val tick = rememberTick()
+    val shape = RoundedCornerShape(50)
     Box(
-        (if (tag != null) Modifier.testTag(tag) else Modifier).clip(RoundedCornerShape(50)).background(if (selected) RColors.Accent.copy(alpha = 0.22f) else RColors.Variant)
-            .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp),
-    ) { Text(text, color = if (selected) RColors.Accent else RColors.Muted, fontSize = 12.sp, fontWeight = FontWeight.Medium) }
+        (if (tag != null) Modifier.testTag(tag) else Modifier).heightIn(min = 34.dp).clip(shape)
+            .background(if (selected) RColors.Accent.copy(alpha = 0.22f) else RColors.Variant)
+            .border(1.dp, if (selected) RColors.Accent.copy(alpha = 0.35f) else Color.Transparent, shape)
+            .clickable { tick(); onClick() }.padding(horizontal = 14.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center,
+    ) { Text(text, color = if (selected) RColors.Accent else RColors.Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium) }
+}
+
+/** Capsule track with a thumb that glides to the selected segment (Pulse and Performance tabs). */
+@Composable
+fun <T> RSegmented(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit, modifier: Modifier = Modifier, tagPrefix: String = "seg_") {
+    val tick = rememberTick()
+    val reduce = rememberReduceMotion()
+    val index = options.indexOf(selected).coerceAtLeast(0)
+    Box(modifier.fillMaxWidth().clip(CircleShape).background(RColors.Variant).padding(3.dp)) {
+        BoxWithConstraints {
+            val segment = maxWidth / options.size
+            val x by animateDpAsState(segment * index, if (reduce) tween(RMotion.FADE_MS) else tween(RMotion.SNAPPY_MS, easing = RMotion.EaseOut), label = "segThumb")
+            Box(Modifier.offset(x = x).width(segment).height(34.dp).clip(CircleShape).background(RColors.Elevated).border(1.dp, RColors.Hairline, CircleShape))
+            Row {
+                options.forEach { o ->
+                    Box(
+                        Modifier.width(segment).height(34.dp).clip(CircleShape).testTag(tagPrefix + label(o))
+                            .clickable { if (o != selected) { tick(); onSelect(o) } },
+                        contentAlignment = Alignment.Center,
+                    ) { Text(label(o), color = if (o == selected) RColors.Text else RColors.Muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
+                }
+            }
+        }
+    }
+}
+
+/** First-load placeholder: a surface card of grey bars with a soft light band sweeping across (no sweep under Reduce motion). */
+@Composable
+fun SkeletonCard(lines: Int, modifier: Modifier = Modifier) {
+    val reduce = rememberReduceMotion()
+    val sweep by rememberInfiniteTransition(label = "shimmer").animateFloat(
+        -1f, 1f, infiniteRepeatable(tween(1300, easing = LinearEasing), RepeatMode.Restart), label = "shimmerX",
+    )
+    val shape = RoundedCornerShape(16.dp)
+    Box(
+        modifier.fillMaxWidth().clip(shape).background(RColors.Surface).border(1.dp, RColors.Hairline, shape)
+            .drawWithContent {
+                drawContent()
+                if (!reduce) {
+                    val band = size.width * 0.6f
+                    val start = size.width * 1.6f * sweep - band / 2 + size.width / 2
+                    drawRect(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.10f), Color.Transparent), startX = start, endX = start + band))
+                }
+            },
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.width(120.dp).height(14.dp).clip(RoundedCornerShape(6.dp)).background(RColors.Variant))
+            repeat(lines) { i ->
+                val h = if (i == 0) 30.dp else 12.dp
+                val bar = Modifier.height(h).clip(RoundedCornerShape(6.dp)).background(if (i == 0) RColors.Variant.copy(alpha = 0.7f) else RColors.Variant)
+                Box(if (i == lines - 1 && i > 0) bar.width(180.dp) else bar.fillMaxWidth())
+            }
+        }
+    }
 }
 
 @Composable
 fun ErrorState(message: String, onRetry: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Couldn't load this", color = RColors.Text, fontWeight = FontWeight.SemiBold)
+        Text("!", color = RColors.Warn, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(4.dp))
+        Text("Couldn't load this", color = RColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
         Spacer(Modifier.height(4.dp))
         Muted(message, align = TextAlign.Center)
-        Spacer(Modifier.height(10.dp))
-        Chip("Retry", false) { onRetry() }
+        Spacer(Modifier.height(12.dp))
+        SecondaryButton(onClick = onRetry, modifier = Modifier.testTag("retry")) { Text("Try again") }
     }
 }
 

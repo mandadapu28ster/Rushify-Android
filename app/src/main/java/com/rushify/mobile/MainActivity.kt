@@ -21,6 +21,7 @@ class MainActivity : FragmentActivity() {
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
         val container = (application as RushifyApp).container
+        com.rushify.mobile.ui.RColors.colorBlind = container.session.colorBlindPalette
         setContent {
             RushifyTheme {
                 CompositionLocalProvider(LocalIconLoader provides container.icons) {
@@ -30,7 +31,14 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    /**
+     * "Hide in app switcher": Android 13+ can blank just the recents thumbnail, so screenshots still work.
+     * Older versions can only block the whole window (screenshots included).
+     */
     fun applyScreenPrivacy(on: Boolean) {
-        if (on) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE) else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            setRecentsScreenshotEnabled(!on)
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else if (on) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE) else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
     }
 }

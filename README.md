@@ -56,3 +56,7 @@ gh release create v0.2.0 --generate-notes
 The `Release APK` workflow runs the unit tests, builds `Rushify-0.2.0.apk` (the tag becomes the version name, the run number the version code), checks the signature and uploads the APK plus a `.sha256` file to the release. A manual run (Actions → Release APK → Run workflow) builds a signed APK and keeps it as a workflow artifact without publishing anything.
 
 **Installing:** open the APK on the phone, allow installs from that app when asked, install, then enter your server address. Private repository: testers need read access to the repo to download release files. `CI` runs unit tests, lint and a debug build on every push and pull request.
+
+## Design
+
+The look follows the iOS app (layered dark surfaces, hairline cards, sliding selectors, skeleton loading, grouped holding sheet, colour-blind palette, app lock with timeout). See `docs/WEB_VS_MOBILE_GAP_ANALYSIS.md` section 16.

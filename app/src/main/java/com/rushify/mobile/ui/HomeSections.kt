@@ -1,5 +1,13 @@
 package com.rushify.mobile.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -73,18 +81,32 @@ class HomeAccordion(val open: String?, val toggle: (String) -> Unit) {
         HomeCollapsible(id, title, summary, expanded = open == id, onToggle = { toggle(id) }, content = content)
 }
 
-/** Title and a short summary while collapsed; the full content when expanded. */
+/**
+ * Title and a short summary while collapsed; the full content when expanded. The arrow turns 180 degrees, the summary fades out
+ * as the body fades in, and the height eases with a soft no-bounce spring (a plain fade under Reduce motion).
+ */
 @Composable
 fun HomeCollapsible(id: String, title: String, summary: String, expanded: Boolean, onToggle: () -> Unit, content: @Composable () -> Unit) {
+    val tick = rememberTick()
+    val reduce = rememberReduceMotion()
+    val rotation by animateFloatAsState(if (expanded) 180f else 0f, if (reduce) tween(RMotion.FADE_MS) else tween(RMotion.SMOOTH_MS, easing = RMotion.EaseOut), label = "chevron")
     RCard(Modifier.testTag("section_$id")) {
-        Row(Modifier.fillMaxWidth().clickable(onClick = onToggle).testTag("section_toggle_$id"), verticalAlignment = Alignment.Top) {
+        Row(Modifier.fillMaxWidth().clickable { tick(); onToggle() }.testTag("section_toggle_$id"), verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
                 SectionTitle(title)
-                if (!expanded) Muted(summary, Modifier.padding(top = 2.dp).testTag("section_summary_$id"))
+                AnimatedVisibility(!expanded, enter = fadeIn(tween(200, delayMillis = 150)), exit = fadeOut(tween(200, easing = RMotion.EaseOut))) {
+                    Muted(summary, Modifier.padding(top = 2.dp).testTag("section_summary_$id"))
+                }
             }
-            Text(if (expanded) "▲" else "▼", color = RColors.Muted, fontSize = 12.sp, modifier = Modifier.padding(start = 8.dp, top = 4.dp))
+            Text("▼", color = RColors.Muted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 8.dp, top = 5.dp).graphicsLayer { rotationZ = rotation })
         }
-        if (expanded) { Spacer(Modifier.height(8.dp)); Column(Modifier.testTag("section_body_$id")) { content() } }
+        AnimatedVisibility(
+            expanded,
+            enter = fadeIn(tween(300, delayMillis = 120)) + (if (reduce) expandVertically(tween(RMotion.FADE_MS)) else expandVertically(RMotion.expand())),
+            exit = fadeOut(tween(150)) + (if (reduce) shrinkVertically(tween(RMotion.FADE_MS)) else shrinkVertically(RMotion.expand())),
+        ) {
+            Column { Spacer(Modifier.height(8.dp)); Column(Modifier.testTag("section_body_$id")) { content() } }
+        }
     }
 }
 

@@ -138,7 +138,7 @@ class UiFlowTest {
         env.route("GET", "/api/portfolio/dashboard") { env.ok("down", 503) }
         val screenVm = DashboardViewModel(env.repo)
         rule.setContent { RushifyTheme { HomeScreen(screenVm) } }
-        waitText("Retry")
+        waitText("Try again")
     }
 
     // ---- holdings ----

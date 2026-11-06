@@ -12,6 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import com.rushify.mobile.data.Growth
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -98,9 +99,9 @@ private fun PeriodChips(granularity: String, options: List<Int>, selected: Int, 
 fun SubScreen(title: String, onBack: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     BackHandler(onBack = onBack)
     Column(modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("‹", color = RColors.Accent, fontSize = 30.sp, modifier = Modifier.clickable(onClick = onBack).padding(horizontal = 12.dp).testTag("back"))
-            Text(title, color = RColors.Text, fontSize = 22.sp)
+        Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(top = 8.dp).heightIn(min = 44.dp)) {
+            Text("‹", color = RColors.Accent, fontSize = 32.sp, modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onBack).padding(horizontal = 12.dp).testTag("back"))
+            Text(title, color = RColors.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.align(Alignment.Center).padding(horizontal = 56.dp))
         }
         Column(Modifier.weight(1f)) { content() }
     }
@@ -128,9 +129,8 @@ class EquityTrendViewModel(private val repo: RushifyRepository) : CachedViewMode
 fun PerformanceScreen(growth: GrowthViewModel, bench: BenchmarksViewModel, dividends: DividendsViewModel, dashboard: DashboardViewModel, equity: EquityTrendViewModel, onBack: () -> Unit) {
     var tab by rememberSaveable { mutableStateOf(0) }
     SubScreen("Performance & income", onBack) {
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("Growth", "Benchmarks", "Dividends").forEachIndexed { i, t -> Chip(t, tab == i) { tab = i } }
-        }
+        val tabs = listOf("Growth", "Benchmarks", "Dividends")
+        RSegmented(tabs, tabs[tab], { it }, { sel -> tab = tabs.indexOf(sel) }, Modifier.padding(horizontal = 16.dp, vertical = 8.dp), tagPrefix = "perf_tab_")
         when (tab) {
             0 -> GrowthTab(growth, dashboard, equity)
             1 -> BenchmarksTab(bench)

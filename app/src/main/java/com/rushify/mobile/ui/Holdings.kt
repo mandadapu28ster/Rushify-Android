@@ -3,6 +3,10 @@ package com.rushify.mobile.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -85,7 +89,7 @@ fun HoldingsScreen(vm: DashboardViewModel, rollupsVm: RollupsViewModel, manual: 
                     Banner("$incomplete manual listed lot${if (incomplete == 1) " is" else "s are"} missing a purchase date or total GBP cost. Open each lot in Holdings and choose Edit lot so cost vs gain is correct.", RColors.Warn, Modifier.testTag("incomplete_lots"))
                 }
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(query, { query = it }, singleLine = true, label = { Text("Search ticker, name or sector") }, modifier = Modifier.fillMaxWidth().testTag("holdings_search"))
+                RField(query, { query = it }, "Search ticker, name or sector", Modifier.testTag("holdings_search"))
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { HoldingSort.entries.forEach { Chip(it.label, sort == it) { sort = it } } }
                 Spacer(Modifier.height(8.dp))
@@ -178,7 +182,7 @@ private fun AccountSummaryBlock(a: AccountSummary, ccy: String, hide: Boolean) {
 
 @Composable
 private fun KV(label: String, value: String, color: Color = RColors.Text) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), horizontalArrangement = Arrangement.SpaceBetween) { Muted(label); Num(value, color = color, size = 12) }
+    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) { Muted(label); Num(value, color = color, size = 13) }
 }
 
 // ---------------- Group header + body ----------------
@@ -218,7 +222,7 @@ private fun GroupHeader(g: HoldingGroup, exposure: ExposureFilter, ccy: String, 
 
 @Composable
 private fun HeaderMetric(label: String, v: BigDecimal?, ccy: String, hide: Boolean, signed: Boolean = false) {
-    Row {
+    Row(verticalAlignment = Alignment.CenterVertically) {
         Muted("$label: ")
         Num(if (signed) Fmt.signedMoney(v, ccy, hide) else Fmt.money(v, ccy, hide), size = 12, color = if (signed) pnlColor(v) else RColors.Text)
     }
@@ -358,34 +362,50 @@ fun DividendsBlock(l: RollupLine, base: String, hide: Boolean) {
 
 @Composable
 fun HoldingDetail(r: HoldingRow, ccy: String, hide: Boolean, rollup: RollupLine? = null, primary: Boolean = true, actions: (@Composable () -> Unit)? = null) {
-    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp).testTag("holding_detail"), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (HoldingsLogic.isListedAssetKind(r.assetKind)) { StockIcon(rollup?.yahooTicker?.takeIf { it.isNotBlank() } ?: r.ticker, size = 36.dp); Spacer(Modifier.width(12.dp)) }
-            Num(HoldingsLogic.displayTicker(r, rollup), size = 20, bold = true)
+    val sold = HoldingsLogic.isManualListedSold(r)
+    val listed = HoldingsLogic.isListedAssetKind(r.assetKind)
+    val hasValuation = listOf(r.peRatio, r.pbRatio, r.pegRatio, r.priceToSales).any { it != null }
+    val hasQuality = listOf(r.dividendYield, r.roe, r.debtToEquity, r.profitMargin, r.revenue).any { it != null }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 4.dp, bottom = 28.dp).testTag("holding_detail"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // Hero: logo, ticker, name, tags, then the market value with a P/L capsule.
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (listed) { StockIcon(rollup?.yahooTicker?.takeIf { it.isNotBlank() } ?: r.ticker, size = 40.dp); Spacer(Modifier.width(12.dp)) }
+                Column {
+                    Num(HoldingsLogic.displayTicker(r, rollup), size = 26, bold = true)
+                    Muted(listOfNotNull(r.instrumentName, r.brokerLabel).joinToString(" · "))
+                }
+            }
+            val tags = listOfNotNull(if (sold) "Sold" else null, rollup?.let { HoldingsLogic.rollupExposureLabel(it.exposure) })
+            if (tags.isNotEmpty()) Text(tags.joinToString(" · "), color = if (sold) RColors.Warn else RColors.Accent, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Num(Fmt.money(r.marketValueBase, ccy, hide), size = 30, bold = true)
+                val pnl = r.pnlStockBase
+                if (pnl != null) {
+                    val tone = pnlColor(pnl)
+                    Num(Fmt.signedMoney(pnl, ccy, hide), color = tone, size = 14, bold = true, modifier = Modifier.clip(CircleShape).background(tone.copy(alpha = 0.14f)).padding(horizontal = 12.dp, vertical = 6.dp).testTag("pnl_capsule"))
+                }
+            }
         }
-        Muted(listOfNotNull(r.instrumentName, r.brokerLabel).joinToString(" · "))
-        val sold = HoldingsLogic.isManualListedSold(r)
-        val tags = listOfNotNull(if (sold) "Sold" else null, rollup?.let { HoldingsLogic.rollupExposureLabel(it.exposure) })
-        if (tags.isNotEmpty()) Text(tags.joinToString(" · "), color = if (sold) RColors.Warn else RColors.Accent, fontSize = 12.sp)
         if (sold) Banner("Fully exited${r.soldOutAt?.let { " on $it" } ?: ""}. Kept for your records.", RColors.Warn)
-        Spacer(Modifier.height(4.dp))
-        DetailRow("Sector", r.sector ?: Fmt.DASH)
-        DetailRow("Quantity", Fmt.quantity(r.quantity))
-        DetailRow("Currency", r.currency ?: Fmt.DASH)
-        DetailRow("Average price", Fmt.money(r.avgPrice, r.currency, hide))
-        DetailRow("Current price", Fmt.money(r.currentPrice, r.currency, hide))
-        DetailRow("Market value", Fmt.money(r.marketValueBase, ccy, hide))
-        DetailRow("Cost", Fmt.money(r.costBase, ccy, hide))
-        DetailRow("P/L (price)", Fmt.signedMoney(r.pnlStockBase, ccy, hide), pnlColor(r.pnlStockBase))
-        r.purchaseDate?.let { DetailRow("Purchase date", it) }
-        if (r.source == "manual" && HoldingsLogic.isListedAssetKind(r.assetKind)) {
-            val set = r.purchaseDate != null && r.costBaseGbp != null
-            if (set) DetailRow("Purchase & cost (GBP)", "${r.purchaseDate} · ${Fmt.money(r.costBaseGbp, "GBP", hide)}")
-            else Text("Purchase & cost (GBP): not set. Use Edit lot below.", color = RColors.Warn, fontSize = 12.sp, modifier = Modifier.testTag("basis_not_set"))
-            if (set) DetailRow("FX effect (approx.)", if (r.pnlCurrencyEffect != null) Fmt.signedMoney(r.pnlCurrencyEffect, ccy, hide) else Fmt.DASH, pnlColor(r.pnlCurrencyEffect))
+        DetailGroup("Position") {
+            DetailRow("Sector", r.sector ?: Fmt.DASH)
+            DetailRow("Quantity", Fmt.quantity(r.quantity))
+            DetailRow("Currency", r.currency ?: Fmt.DASH)
+            DetailRow("Average price", Fmt.money(r.avgPrice, r.currency, hide))
+            DetailRow("Current price", Fmt.money(r.currentPrice, r.currency, hide))
+            DetailRow("Market value", Fmt.money(r.marketValueBase, ccy, hide))
+            DetailRow("Cost", Fmt.money(r.costBase, ccy, hide))
+            DetailRow("P/L (price)", Fmt.signedMoney(r.pnlStockBase, ccy, hide), pnlColor(r.pnlStockBase))
+            r.purchaseDate?.let { DetailRow("Purchase date", it) }
+            if (r.source == "manual" && listed) {
+                val set = r.purchaseDate != null && r.costBaseGbp != null
+                if (set) DetailRow("Purchase & cost (GBP)", "${r.purchaseDate} · ${Fmt.money(r.costBaseGbp, "GBP", hide)}")
+                else Text("Purchase & cost (GBP): not set. Use Edit lot below.", color = RColors.Warn, fontSize = 12.sp, modifier = Modifier.testTag("basis_not_set"))
+                if (set) DetailRow("FX effect (approx.)", if (r.pnlCurrencyEffect != null) Fmt.signedMoney(r.pnlCurrencyEffect, ccy, hide) else Fmt.DASH, pnlColor(r.pnlCurrencyEffect))
+            }
         }
-        if (rollup != null) {
-            Spacer(Modifier.height(4.dp))
+        if (rollup != null) DetailGroup("Fees & dividends") {
             if (primary) {
                 DetailRow("Tax", Fmt.money(rollup.fillTaxBaseSum ?: BigDecimal.ZERO, ccy, hide))
                 DetailRow("FX fees", Fmt.money(rollup.fillFxFeesBaseSum ?: BigDecimal.ZERO, ccy, hide))
@@ -393,22 +413,35 @@ fun HoldingDetail(r: HoldingRow, ccy: String, hide: Boolean, rollup: RollupLine?
                 DividendsBlock(rollup, ccy, hide)
             } else Muted("Fees and dividends for this symbol are shown on its first line.")
         }
-        Spacer(Modifier.height(4.dp))
-        DetailRow("P/E", Fmt.number(r.peRatio))
-        DetailRow("P/B", Fmt.number(r.pbRatio))
-        DetailRow("PEG", Fmt.number(r.pegRatio))
-        DetailRow("P/S", Fmt.number(r.priceToSales))
-        DetailRow("Dividend yield", Fmt.percentFromFraction(r.dividendYield))
-        DetailRow("ROE", Fmt.percentFromFraction(r.roe))
-        DetailRow("Debt / equity", Fmt.number(r.debtToEquity))
-        DetailRow("Profit margin", Fmt.percent(r.profitMargin))
-        DetailRow("Revenue", Fmt.abbreviate(r.revenue))
+        if (hasValuation) DetailGroup("Valuation") {
+            DetailRow("P/E", Fmt.number(r.peRatio))
+            DetailRow("P/B", Fmt.number(r.pbRatio))
+            DetailRow("PEG", Fmt.number(r.pegRatio))
+            DetailRow("P/S", Fmt.number(r.priceToSales))
+        }
+        if (hasQuality) DetailGroup("Quality & income") {
+            DetailRow("Dividend yield", Fmt.percentFromFraction(r.dividendYield))
+            DetailRow("ROE", Fmt.percentFromFraction(r.roe))
+            DetailRow("Debt / equity", Fmt.number(r.debtToEquity))
+            DetailRow("Profit margin", Fmt.percent(r.profitMargin))
+            DetailRow("Revenue", Fmt.abbreviate(r.revenue))
+        }
+        if (!hasValuation && !hasQuality) Muted("No fundamentals data for this holding.")
         Muted("Prices are end-of-day / cached, not live.")
         actions?.invoke()
     }
 }
 
+/** Uppercase caption over a raised block of label and value rows. */
+@Composable
+private fun DetailGroup(title: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title.uppercase(), color = RColors.Muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.8.sp, modifier = Modifier.padding(start = 4.dp))
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(RColors.Variant.copy(alpha = 0.55f)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) { content() }
+    }
+}
+
 @Composable
 private fun DetailRow(label: String, value: String, color: Color = RColors.Text) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Muted(label); Num(value, color = color, size = 13) }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) { Muted(label); Num(value, color = color, size = 14) }
 }
